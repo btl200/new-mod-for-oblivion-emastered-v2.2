@@ -64,11 +64,17 @@ local function safeSetText(widget, text)
 end
 
 local function addSizedChild(parent, child, width, height)
-    local sizeBox = window:CreateSizeBox()
-    sizeBox:SetWidthOverride(width)
-    sizeBox:SetHeightOverride(height)
-    sizeBox:AddChild(child)
-    parent:AddChildToVerticalBox(sizeBox)
+    if not child or not child:IsValid() then
+        error("DiUI returned an invalid child widget")
+    end
+
+    -- USizeBox construction is broken with this installed DiUI/UE4SS combination.
+    -- Add the widget directly and apply slot padding where supported.
+    local slot = parent:AddChildToVerticalBox(child)
+    if slot and slot:IsValid() then
+        pcall(function() slot:SetPadding({Left=4, Right=4, Top=3, Bottom=3}) end)
+        pcall(function() slot:SetHorizontalAlignment(3) end) -- Fill
+    end
     return child
 end
 
@@ -175,18 +181,29 @@ local function createWindow()
         pcall(function() playerInput:SetHintText(FText("Type your question here")) end)
 
         local controls = window:CreateHorizontalBox()
+        if not controls or not controls:IsValid() then
+            error("DiUI could not create the controls row")
+        end
+
         local sendButton = window:CreateButton("Send", submitQuestion)
         local closeButton = window:CreateButton("Close", closeWindow)
-        local sendBox = window:CreateSizeBox()
-        sendBox:SetWidthOverride(180)
-        sendBox:SetHeightOverride(38)
-        sendBox:AddChild(sendButton)
-        controls:AddChildToHorizontalBox(sendBox)
-        local closeBox = window:CreateSizeBox()
-        closeBox:SetWidthOverride(180)
-        closeBox:SetHeightOverride(38)
-        closeBox:AddChild(closeButton)
-        controls:AddChildToHorizontalBox(closeBox)
+        if not sendButton or not sendButton:IsValid() then
+            error("DiUI could not create the Send button")
+        end
+        if not closeButton or not closeButton:IsValid() then
+            error("DiUI could not create the Close button")
+        end
+
+        local sendSlot = controls:AddChildToHorizontalBox(sendButton)
+        if sendSlot and sendSlot:IsValid() then
+            pcall(function() sendSlot:SetPadding({Left=4, Right=4, Top=3, Bottom=3}) end)
+        end
+
+        local closeSlot = controls:AddChildToHorizontalBox(closeButton)
+        if closeSlot and closeSlot:IsValid() then
+            pcall(function() closeSlot:SetPadding({Left=4, Right=4, Top=3, Bottom=3}) end)
+        end
+
         addSizedChild(box, controls, 760, 42)
 
         statusText = addLabel(box, "")
@@ -345,6 +362,7 @@ end)
 
 RegisterKeyBind(Key.F8, openWindow)
 
+    print("[AI Dialogue] DiUI compatibility mode active (no SizeBox widgets).")
     print("[AI Dialogue] UE4SS overlay loaded. Use F8 while speaking to an NPC.")
     return true
 end
